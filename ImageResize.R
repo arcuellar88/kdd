@@ -2,7 +2,7 @@ library(EBImage)
 library(RMySQL)
 library(png)
 #Set up working directory (make sure the thumbs directory is in there!)
-setwd("/Users/alejandrorodriguez/Documents/DataMining/kdd/kdd/")
+setwd("/Users/alejandrorodriguez/Documents/DataMining/kdd/")
 
 
 #Function to resize the images
