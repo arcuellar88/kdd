@@ -85,9 +85,7 @@ clusterKM = function(sData,k,iter) {
 
 #' Create a label of the kmean
 #' @param cl kmean cluster
-#' @param data dataframe
-#' @param label of the cluster: E.g kmeans k: 50 between: 982683.05 withinss: 222461.94 totss: 1205145
-#' @example
+#' @examples
 #' labelKMean(cl)
 #' @return kmeans k: 50 between: 982683.05 withinss: 222461.94 totss: 1205145
 labelKMean=function(cl)
@@ -103,7 +101,7 @@ labelKMean=function(cl)
 #' Clara: Clustering algorithm for large datasets using PAM 
 #' @param sample size <1000 (performance issues)
 #' @param data dataframe
-#' @example
+#' @examples
 #' claraPAM(100)
 clusterClaraPAM=function(sample)
 {
@@ -124,7 +122,7 @@ clusterClaraPAM=function(sample)
 #' @param cl kmean cluster
 #' @param data dataframe
 #' @param label of the cluster: E.g kmeans k: 50 between: 982683.05 withinss: 222461.94 totss: 1205145
-#' @example
+#' @examples
 #' labelKMean(cl)
 #' @return kmeans k: 50 between: 982683.05 withinss: 222461.94 totss: 1205145
 clusterValidation=function(data,cluster)
@@ -178,6 +176,10 @@ uploadClusterDB=function(cluster,data,label,descriptor)
 #-------------------------------------
 # Orchestrator
 #-------------------------------------
+#' Manage the complete process: get subset, cluster, validate, upload cluster to database
+#' @examples
+#' orchestrator()
+#' orchestrator()
 orchestrator=function()
 {
   #Example KMEANS
@@ -193,13 +195,15 @@ orchestrator=function()
 #-------------------------------------
 
 #' Remove all variables from memory
-#' @example
+#' @examples
 #' clearVariables()
 clearVariables=function()
 {
   rm(list=ls())
 }
-
+#' Get the list of available descriptors
+#' @examples
+#' getDescriptors()
 getDescriptors=function()
 {
   con <- connectDB()
@@ -209,6 +213,9 @@ getDescriptors=function()
   print(descriptors)
 }
 
+#' Connect to mysql database
+#' @examples
+#' connectDB()
 connectDB=function()
 {
    library(RMySQL)
