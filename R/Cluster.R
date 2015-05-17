@@ -154,8 +154,8 @@ uploadClusterDB=function(cluster,data,label,descriptor)
   
   #Insert new cluster result into cluster_index table
   
-  query=gsub("labK",label,"INSERT INTO vesale.cluster_index(cluster_label,activity_date) VALUES ('labK',now())")
-  query=gsub("descriptorV",descriptor,query)
+  query=gsub("labK",label,"INSERT INTO vesale.cluster_index(cluster_label,activity_date,descriptor) VALUES ('labK',now(),'descV')")
+  query=gsub("descV",descriptor,query)
   
   rs<-dbSendQuery(con,query)
   
@@ -166,7 +166,7 @@ uploadClusterDB=function(cluster,data,label,descriptor)
   #Insert new cluster values into image_cluster table
   data<-cbind(data[,1],cluster,cid)
   colnames(data)<-c("imageId","cluster","clusterID")
-  dbWriteTable(con,"image_cluster",data,overwrite=T)
+  dbWriteTable(con,"image_cluster",data,append=T)
   
   #Close mysql connection
   dbClearResult(rs)
@@ -180,14 +180,12 @@ uploadClusterDB=function(cluster,data,label,descriptor)
 #' @examples
 #' orchestrator()
 #' orchestrator()
-orchestrator=function()
+orchestrator=function(descriptor,startPage,endPage,k)
 {
-  #Example KMEANS
-  getDescriptors()
   #Get subset
-  data<-getSubset(descriptors[1,3],5,10)
-  cl<-clusterKM(data,50,100)
-  uploadClusterDB(cl$cluster,data,labelKMean(cl),descriptors[1,3])
+  data<-getSubset(descriptor,startPage,endPage)
+  cl<-clusterKM(data,k,100)
+  uploadClusterDB(cl$cluster,data,labelKMean(cl),descriptor)
 }
 
 #-------------------------------------
@@ -220,6 +218,6 @@ connectDB=function()
 {
    library(RMySQL)
    #dbConnect(MySQL(), user="root", password="", dbname="vesale", host="localhost")
-   con <- dbConnect(MySQL(), user="mysqluser", password="", dbname="vesale", host="164.15.78.25")
+   con <- dbConnect(MySQL(), user="mysqluser", password="userul8mys9l", dbname="vesale", host="164.15.78.25")
 }
   
