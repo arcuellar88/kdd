@@ -60,6 +60,27 @@ getSubset = function(imgDescriptor,startPage,endPage) {
   colnames(data)<-c("imageId",colnames(data, do.NULL = FALSE)[-1])
   data
 }
+#' Fetch the data for a given cluster algorithm
+#' @param clusterID id of the clustering algorithm
+#' @return matrix resulted from the split.
+#' @examples
+#' getValidationDataset(1000011)
+#' getValidationDataset(1000011)
+getValidationDataset = function(clusterID,descriptor) {
+  con <- connectDB()
+  query=gsub("desc2",descriptor,"SELECT imageid,cluster,vector FROM vesale.desc2 join image_cluster using(imageID) where clusterID=cl2");
+  query=gsub("cl2",clusterID,query);
+  rs <- dbSendQuery(con,query)
+  data <- fetch(rs, n=-1)
+  
+  dbClearResult(rs)
+  dbDisconnect(con)
+  
+  #Transform comma separated column
+  data<-cbind(data[,1],splitCSVColumn(data[,3]))
+  colnames(data)<-c("imageId","clusterID",colnames(data, do.NULL = FALSE)[-c(1,2)])
+  data
+}
 
 
 #-------------------------------------
@@ -127,13 +148,22 @@ clusterClaraPAM=function(sample)
 #' @return kmeans k: 50 between: 982683.05 withinss: 222461.94 totss: 1205145
 clusterValidation=function(data,cluster)
 {
-  dl<-dist(data[,-1])
+  library(clusterSim)
+  
+  dl<-dist(data)
+  
+  DB<<-index.DB(x=data, cl=cluster, d=dl, centrotypes="centroids", p=2, q=2)
+  print(c("Dboudin",DB$DB))
+  
   sil<<-cluster::silhouette(x = cluster, dist = dl)  
-  index.list<-cls.scatt.data(data[,-1], cl$cluster, dist="euclidean")
-  intraclust = c("complete","average","centroid")
-  interclust = c("single", "complete", "average")
-  dunn1 <- clv.Dunn(index.list, intraclust, interclust)
-  summary(dunn1)
+  print(c("silhouette",mean(sil[,"sil_width"])))
+  
+  
+  #index.list<-cls.scatt.data(data[,-1], cl$cluster, dist="euclidean")
+  #intraclust = c("complete","average","centroid")
+  #interclust = c("single", "complete", "average")
+  #dunn1 <- clv.Dunn(index.list, intraclust, interclust)
+  #summary(dunn1)
 }
 
 #-------------------------------------
@@ -173,6 +203,23 @@ uploadClusterDB=function(cluster,data,label,descriptor)
   dbDisconnect(con)
 }
 
+uploadClusterValidation=function(cluster,silhouette,dbouldin)
+{
+  #Connect to database
+  con <- connectDB()
+  
+  #Insert new cluster result into cluster_index table
+  
+  query=gsub("silV",silhouette,"update vesale.cluster_index set silhouette=silV, dbouldin=dbV where clusterID=cl2")
+  query=gsub("dbV",dbouldin,query)
+  query=gsub("cl2",cluster,query)
+  rs<-dbSendQuery(con,query)
+  
+  #Close mysql connection
+  dbClearResult(rs)
+  dbDisconnect(con)
+}
+
 #-------------------------------------
 # Orchestrator
 #-------------------------------------
@@ -180,12 +227,29 @@ uploadClusterDB=function(cluster,data,label,descriptor)
 #' @examples
 #' orchestrator()
 #' orchestrator()
-orchestrator=function(descriptor,startPage,endPage,k)
+orchestratorKM=function(descriptor,startPage,endPage,k)
 {
   #Get subset
   data<-getSubset(descriptor,startPage,endPage)
   cl<-clusterKM(data,k,100)
   uploadClusterDB(cl$cluster,data,labelKMean(cl),descriptor)
+  
+}
+
+orchestratorValidation=function(clusterID)
+{
+  print("Start orchestratorValidation")
+  
+  print("getValidationDataset")
+  dataV<-getValidationDataset(clusterID,getClusterAlgorithmsDescriptor(clusterID))
+  print("ClusterValidation")
+  clusterValidation(dataV[,-c(1,2)],dataV[,2])
+  
+  print("uploadClusterValidation")
+  uploadClusterValidation(clusterID,mean(sil[,"sil_width"]),DB$DB)
+  
+  print("End orchestratorValidation")
+  
 }
 
 #-------------------------------------
@@ -211,13 +275,32 @@ getDescriptors=function()
   print(descriptors)
 }
 
+getClusterAlgorithms=function()
+{
+  con <- connectDB()
+  query="SELECT clusterID,substring(cluster_label,1,14) as label, activity_date,descriptor,num_images,silhouette,dbouldin FROM vesale.cluster_index;";
+  rs <- dbSendQuery(con,query)
+  descriptors <<- fetch(rs, n=-1)
+  print(descriptors)
+}
+
+getClusterAlgorithmsDescriptor=function(clusterID)
+{
+  con <- connectDB()
+  query="SELECT descriptor FROM vesale.cluster_index where clusterID=cl2";
+  query=gsub("cl2",clusterID,query);
+  rs <- dbSendQuery(con,query)
+  descriptor <<- fetch(rs, n=-1)
+  descriptor
+}
+
 #' Connect to mysql database
 #' @examples
 #' connectDB()
 connectDB=function()
 {
    library(RMySQL)
-   #dbConnect(MySQL(), user="root", password="", dbname="vesale", host="localhost")
    con <- dbConnect(MySQL(), user="mysqluser", password="userul8mys9l", dbname="vesale", host="164.15.78.25")
+   con
 }
   
