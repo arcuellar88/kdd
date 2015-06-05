@@ -60,16 +60,59 @@ getSubset = function(imgDescriptor,startPage,endPage) {
   colnames(data)<-c("imageId",colnames(data, do.NULL = FALSE)[-1])
   data
 }
+
+#' Fetch the data for a given sampleid and image descriptors
+#' @param imgDescriptor in {SIFT, etc.}
+#' @param sampleid, id of the requested sample
+#' @return matrix resulted from the split.
+#' @examples
+#' getSubset("SIFT")
+#' getSubset(data[,2])
+getSampleData = function(imgDescriptors,sampleid) {
+  con <- connectDB()
+  query="SELECT * FROM vesale.sample";
+  for (counter in imgDescriptors) 
+  {
+    query<-paste(query," join vesale.",counter," using(imageid)", sep = "")
+  }
+  query<-paste(query,"where sampleid=",sampleid, sep = " ")
+  print(query)
+  rs <- dbSendQuery(con,query)
+  data <- fetch(rs, n=-1)
+  
+  dbClearResult(rs)
+  dbDisconnect(con)
+  
+ #Transform comma separated column
+ i=3
+ dataVector<-numeric()
+ for (counter in imgDescriptors) 
+ {
+   dataVector<-cbind(dataVector,splitCSVColumn(data[,i]))
+   i=i+1
+ } 
+ 
+ data<-cbind(data[,1],dataVector)
+ colnames(data)<-c("imageId",colnames(data, do.NULL = FALSE)[-1])
+ data
+}
+
 #' Fetch the data for a given cluster algorithm
 #' @param clusterID id of the clustering algorithm
 #' @return matrix resulted from the split.
 #' @examples
 #' getValidationDataset(1000011)
 #' getValidationDataset(1000011)
-getValidationDataset = function(clusterID,descriptor) {
+getValidationDataset = function(clusterID,imgDescriptors) {
   con <- connectDB()
-  query=gsub("desc2",descriptor,"SELECT imageid,cluster,vector FROM vesale.desc2 join image_cluster using(imageID) where clusterID=cl2");
-  query=gsub("cl2",clusterID,query);
+  query="SELECT imageid,cluster FROM image_cluster" ;
+  for (counter in imgDescriptors) 
+  {
+    query=gsub("FROM",paste(",",counter,".vector FROM"),query);
+    query<-paste(query," join vesale.",counter," using(imageID)")
+  }
+  query<-paste(query,"where clusterID=",clusterID,sep=" ")
+  print(query)
   rs <- dbSendQuery(con,query)
   data <- fetch(rs, n=-1)
   
@@ -77,7 +120,15 @@ getValidationDataset = function(clusterID,descriptor) {
   dbDisconnect(con)
   
   #Transform comma separated column
-  data<-cbind(data[,1],splitCSVColumn(data[,3]))
+  i=3
+  dataVector<-numeric()
+  for (counter in imgDescriptors) 
+  {
+    dataVector<-cbind(dataVector,splitCSVColumn(data[,i]))
+    i=i+1
+  } 
+  data<-cbind(data[,1],data[,2],dataVector)
+  
   colnames(data)<-c("imageId","clusterID",colnames(data, do.NULL = FALSE)[-c(1,2)])
   data
 }
@@ -150,14 +201,15 @@ clusterValidation=function(data,cluster)
 {
   library(clusterSim)
   
-  dl<-dist(data)
-  
-  DB<<-index.DB(x=data, cl=cluster, d=dl, centrotypes="centroids", p=2, q=2)
-  print(c("Dboudin",DB$DB))
+  dl<-dist(data,method="minkowski",diag = FALSE, upper = FALSE,p=3)
+  print("distance matrix done")
   
   sil<<-cluster::silhouette(x = cluster, dist = dl)  
   print(c("silhouette",mean(sil[,"sil_width"])))
   
+  #DB<<-index.DB(x=data, cl=cluster, d=dl, centrotypes="centroids", p=2, q=2)
+  #print(c("Dboudin",DB$DB))
+   
   
   #index.list<-cls.scatt.data(data[,-1], cl$cluster, dist="euclidean")
   #intraclust = c("complete","average","centroid")
@@ -223,17 +275,49 @@ uploadClusterValidation=function(cluster,silhouette,dbouldin)
 #-------------------------------------
 # Orchestrator
 #-------------------------------------
-#' Manage the complete process: get subset, cluster, validate, upload cluster to database
+#' Manage the complete process: get subset page range, cluster, validate, upload cluster to database
+#' @param startPage
+#' @param endPage
 #' @examples
 #' orchestrator()
 #' orchestrator()
-orchestratorKM=function(descriptor,startPage,endPage,k)
+orchestratorKMPageRange=function(descriptor,startPage,endPage,k)
 {
   #Get subset
   data<-getSubset(descriptor,startPage,endPage)
-  cl<-clusterKM(data,k,100)
-  uploadClusterDB(cl$cluster,data,labelKMean(cl),descriptor)
+  print("Get subset finish")
   
+  cl<-clusterKM(data,k,100)
+  
+  print("Clustering finish")
+  
+  uploadClusterDB(cl$cluster,data,labelKMean(cl),descriptor)
+  print("Uploading cluster to database finish")
+  
+  #Update the cluster stats
+  updateDBStats()
+}
+
+#' Manage the complete process: get subset , cluster, validate, upload cluster to database
+#' @k Number of clusters
+#' @sampleid id of the sample to cluster
+#' @imgDescritors List of image descriptors
+#' @examples
+#' orchestrator(c("CENTROIDS_H30","AREA_H30"),1,100)
+orchestratorKMSample=function(imgDescriptors,sampleid,k)
+{
+  #Get sample data 
+  data<-getSampleData(imgDescriptors,sampleid)
+  print("Get sample data finish")
+  
+  cl<-clusterKM(data,k,100)
+  print("Clustering finish")
+  
+  uploadClusterDB(cl$cluster,data,labelKMean(cl),labelDescriptors(imgDescriptors))
+  print("Uploading cluster to database finish")
+  
+  #Update the cluster stats 
+  updateDBStats()
 }
 
 orchestratorValidation=function(clusterID)
@@ -242,6 +326,7 @@ orchestratorValidation=function(clusterID)
   
   print("getValidationDataset")
   dataV<-getValidationDataset(clusterID,getClusterAlgorithmsDescriptor(clusterID))
+  print(NROW(dataV))
   print("ClusterValidation")
   clusterValidation(dataV[,-c(1,2)],dataV[,2])
   
@@ -249,12 +334,26 @@ orchestratorValidation=function(clusterID)
   uploadClusterValidation(clusterID,mean(sil[,"sil_width"]),DB$DB)
   
   print("End orchestratorValidation")
-  
+
 }
 
 #-------------------------------------
 # Miscelaneos
 #-------------------------------------
+
+labelDescriptors=function(imgDescriptors)
+{
+  labelD<-""
+ 
+  for (counter in imgDescriptors) 
+  {  
+    if(labelD=="")
+      labelD<-counter
+    else 
+      labelD<-paste(labelD,",",counter)
+  }
+  labelD
+}
 
 #' Remove all variables from memory
 #' @examples
@@ -273,6 +372,8 @@ getDescriptors=function()
   rs <- dbSendQuery(con,query)
   descriptors <<- fetch(rs, n=-1)
   print(descriptors)
+  dbClearResult(rs)
+  dbDisconnect(con)
 }
 
 getClusterAlgorithms=function()
@@ -282,6 +383,8 @@ getClusterAlgorithms=function()
   rs <- dbSendQuery(con,query)
   descriptors <<- fetch(rs, n=-1)
   print(descriptors)
+  dbClearResult(rs)
+  dbDisconnect(con)
 }
 
 getClusterAlgorithmsDescriptor=function(clusterID)
@@ -291,7 +394,35 @@ getClusterAlgorithmsDescriptor=function(clusterID)
   query=gsub("cl2",clusterID,query);
   rs <- dbSendQuery(con,query)
   descriptor <<- fetch(rs, n=-1)
-  descriptor
+  
+  descriptorV<-do.call(rbind, strsplit(gsub('[ ]|, |,[ ]',',',descriptor),','))
+  
+  dbClearResult(rs)
+  dbDisconnect(con)
+  
+  descriptorV
+  
+}
+
+printSampleDataDescriptor=function(imgDescriptor)
+{
+  con <- connectDB()
+  query="SELECT * FROM vesale.idesc limit 10";
+  query=gsub("idesc",imgDescriptor,query);
+  rs <- dbSendQuery(con,query)
+  sampleDataDescriptor <<- fetch(rs, n=-1)
+  
+  dbClearResult(rs)
+  dbDisconnect(con)
+  sampleDataDescriptor
+}
+
+updateDBStats=function()
+{
+  con <- connectDB()
+  query="CALL vesale.update_cluster_stats()";
+  dbSendQuery(con,query)
+  dbDisconnect(con)
 }
 
 #' Connect to mysql database
