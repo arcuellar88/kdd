@@ -44,11 +44,17 @@ splitCSVColumn= function(column) {
 #' @examples
 #' getSubset("SIFT")
 #' getSubset(data[,2])
-getSubset = function(imgDescriptor,startPage,endPage) {
+getSubset = function(imgDescriptors,startPage,endPage) {
   con <- connectDB()
-  query=gsub("startPage",startPage,"SELECT imageID, vector FROM vesale.imgDescriptor join image_index using(imageID) where page>=startPage and page<endPage");
-  query=gsub("endPage",endPage,query);
-  query=gsub("imgDescriptor",imgDescriptor,query);
+   
+  query="SELECT imageid FROM image_index" ;
+  for (counter in imgDescriptors) 
+  {
+    query=gsub("FROM",paste(",",counter,".vector FROM",sep=""),query);
+    query<-paste(query," join vesale.",counter," using(imageID)")
+  }
+  query<-paste(query,"where page>=",startPage,"and page<",endPage,sep=" ")
+  print(query)
   rs <- dbSendQuery(con,query)
   data <- fetch(rs, n=-1)
   
@@ -56,7 +62,15 @@ getSubset = function(imgDescriptor,startPage,endPage) {
   dbDisconnect(con)
   
   #Transform comma separated column
-  data<-cbind(data[,1],splitCSVColumn(data[,2]))
+  i=2
+  dataVector<-numeric()
+  for (counter in imgDescriptors) 
+  {
+    dataVector<-cbind(dataVector,splitCSVColumn(data[,i]))
+    i=i+1
+  } 
+  data<-cbind(data[,1],dataVector)
+  
   colnames(data)<-c("imageId",colnames(data, do.NULL = FALSE)[-1])
   data
 }
@@ -89,6 +103,7 @@ getSampleData = function(imgDescriptors,sampleid) {
  for (counter in imgDescriptors) 
  {
    dataVector<-cbind(dataVector,splitCSVColumn(data[,i]))
+   print(counter)
    i=i+1
  } 
  
@@ -108,7 +123,7 @@ getValidationDataset = function(clusterID,imgDescriptors) {
   query="SELECT imageid,cluster FROM image_cluster" ;
   for (counter in imgDescriptors) 
   {
-    query=gsub("FROM",paste(",",counter,".vector FROM"),query);
+    query=gsub("FROM",paste(",",counter,".vector FROM",sep=""),query);
     query<-paste(query," join vesale.",counter," using(imageID)")
   }
   query<-paste(query,"where clusterID=",clusterID,sep=" ")
@@ -281,17 +296,17 @@ uploadClusterValidation=function(cluster,silhouette,dbouldin)
 #' @examples
 #' orchestrator()
 #' orchestrator()
-orchestratorKMPageRange=function(descriptor,startPage,endPage,k)
+orchestratorKMPageRange=function(imgDescriptors,startPage,endPage,k)
 {
   #Get subset
-  data<-getSubset(descriptor,startPage,endPage)
+  data<-getSubset(imgDescriptors,startPage,endPage)
   print("Get subset finish")
   
   cl<-clusterKM(data,k,100)
   
   print("Clustering finish")
   
-  uploadClusterDB(cl$cluster,data,labelKMean(cl),descriptor)
+  uploadClusterDB(cl$cluster,data,labelKMean(cl),labelDescriptors(imgDescriptors))
   print("Uploading cluster to database finish")
   
   #Update the cluster stats
@@ -350,7 +365,7 @@ labelDescriptors=function(imgDescriptors)
     if(labelD=="")
       labelD<-counter
     else 
-      labelD<-paste(labelD,",",counter)
+      labelD<-paste(labelD,",",counter,sep="")
   }
   labelD
 }
@@ -381,8 +396,8 @@ getClusterAlgorithms=function()
   con <- connectDB()
   query="SELECT clusterID,substring(cluster_label,1,14) as label, activity_date,descriptor,num_images,silhouette,dbouldin FROM vesale.cluster_index;";
   rs <- dbSendQuery(con,query)
-  descriptors <<- fetch(rs, n=-1)
-  print(descriptors)
+  algorithms <<- fetch(rs, n=-1)
+  print(algorithms)
   dbClearResult(rs)
   dbDisconnect(con)
 }
