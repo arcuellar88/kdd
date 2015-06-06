@@ -335,6 +335,35 @@ orchestratorKMSample=function(imgDescriptors,sampleid,k)
   updateDBStats()
 }
 
+
+#' Manage the complete process: get subset , cluster, validate, upload cluster to database
+#' @k Number of clusters
+#' @sampleid id of the sample to cluster
+#' @imgDescritors List of image descriptors
+#' @examples
+#' orchestratorClaraSample("DF_H30_Z5x5_D5x5",1,100)
+orchestratorClaraSample=function(imgDescriptors,sampleid,k) {
+  library(cluster)
+  #Get sample data 
+  data<-getSampleData(imgDescriptors,sampleid)
+  print("Get sample data finish")
+  
+  cl<-clara(data[,-1],k)
+  print("Clustering finish")
+  
+  uploadClusterDB(cl$cluster,data,paste(labelClara(cl),"Descriptors:",imgDescriptors),labelDescriptors(imgDescriptors))
+  print("Uploading cluster to database finish")
+  
+  #Update the cluster stats 
+  updateDBStats()
+}
+
+# Get description for clara result
+labelClara <- function(cl) {
+  label = paste("Clara", "sampleSize:", length(cl$cluster) ,"k:", nrow(cl$clusinfo), "objective:", cl$objective, sep = " ")
+  return (label)
+}
+
 orchestratorValidation=function(clusterID)
 {
   print("Start orchestratorValidation")
