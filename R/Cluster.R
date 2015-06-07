@@ -357,6 +357,28 @@ orchestratorClaraSample=function(imgDescriptors,sampleid,k) {
   #Update the cluster stats 
   updateDBStats()
 }
+#' Manage the complete process: get subset , cluster, validate, upload cluster to database
+#' @k Number of clusters
+#' @startPage start page where images are retrieved
+#' @endPage start page where images are retrieved
+#' @imgDescritors List of image descriptors
+#' @examples
+#' orchestratorClaraPageRange("DF_H30_Z5x5_D5x5",5,10,100)
+orchestratorClaraPageRange=function(imgDescriptors,startPage,endPage,k) {
+  library(cluster)
+  #Get sample data 
+  data<-getSubset(imgDescriptors,startPage,endPage)
+  print("Get sample data finish")
+  
+  cl<-clara(data[,-1],k)
+  print("Clustering finish")
+  
+  uploadClusterDB(cl$cluster,data,paste(labelClara(cl), "StartPage:",startPage, "EndPage:", endPage ,"Descriptors:",imgDescriptors),labelDescriptors(imgDescriptors))
+  print("Uploading cluster to database finish")
+  
+  #Update the cluster stats 
+  updateDBStats()
+}
 
 # Get description for clara result
 labelClara <- function(cl) {
