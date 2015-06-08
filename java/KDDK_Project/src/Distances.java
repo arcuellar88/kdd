@@ -21,7 +21,7 @@ public class Distances {
 	private final int TOTAL_IMAGES=1843; //++++++
 	private final int FIRST_ID=2; //+++++
 	private final int DATA_LENGTH=75;
-	private final String DISTANCE_TYPE = "e"; //e for euclidean, ma for manhattan, mi for minkowski
+	private String DISTANCE_TYPE = "e"; //e for euclidean, ma for manhattan, mi for minkowski
 	
 	public Distances(){
 		this.imageIDs = new int[this.TOTAL_IMAGES+this.FIRST_ID+1]; //so every image data is on the same index
@@ -40,6 +40,7 @@ public class Distances {
 			cv = FileLineReader.readLineArray(feat_cv_30,"UTF-8");
 			df = FileLineReader.readLineArray(feat_df_30,"UTF-8");
 			int i=0;
+			System.out.println("Size cv:" + cv.length);
 			for(String line : cv){
 				String elems[] = line.split("\t");
 				int imgID = Integer.parseInt(elems[0]);
@@ -72,7 +73,7 @@ public class Distances {
 	}
 	
 	public void associateCluster(){
-		System.out.println("associating clusters");
+		System.out.println("associating clusters, distance: "+this.DISTANCE_TYPE);
 		String data = "";
 		for(int i=0; i<this.imageIDs.length; i++){
 			double minDist = getDistance(this.clusterMeans[1],this.imageData[i]); //dist to first cluster
@@ -89,11 +90,33 @@ public class Distances {
 			data += this.imageLabels[i];
 		}
 		String newdata = data.replace("n RightN", "m");
-		newdata = newdata.replace("DownS o", "g");
+		newdata = newdata.replace("DownG o", "g");
+		newdata = newdata.replace("DownG UpperG", "g");
 		newdata = newdata.replace("i RightN", "n");
 		newdata = newdata.replace("l RightN", "n");
+		newdata = newdata.replace("i  RightN", "n");
+		newdata = newdata.replace("l  RightN", "n");
+		newdata = newdata.replace("I RightN", "n");
+		newdata = newdata.replace("I  RightN", "n");
 		newdata = newdata.replace("l .", "i");
-		System.out.print(newdata);
+		newdata = newdata.replace("n RightN", "m");
+		newdata = newdata.replace("n  RightN", "m");
+		newdata = newdata.replace("LeftU i", "u");
+		newdata = newdata.replace("LeftU  i", "u");
+		newdata = newdata.replace("i RightM", "m");
+		newdata = newdata.replace("l RightM", "m");
+		newdata = newdata.replace("i  RightM", "m");
+		newdata = newdata.replace("l  RightM", "m");
+		newdata = newdata.replace("RightN RightN", "m");
+		System.out.println(newdata);
+		
+		try{
+			PrintWriter writer = new PrintWriter(this.DISTANCE_TYPE+"Transcript.txt", "UTF-8");
+			writer.println(newdata);
+			writer.close();
+		}catch(Exception e){	
+		}
+		
 	}
 	
 	public double getDistance(double cl[], int img[]){
@@ -263,21 +286,35 @@ public class Distances {
 		
 		byte[] encoded = Files.readAllBytes(Paths.get(templateFile));
 		String htmlContent = new String(encoded, StandardCharsets.UTF_8);
-		htmlContent = htmlContent.replaceAll("KDD_CLUSIFICATION_RESULT", htmlbody.toString());
+		htmlContent = htmlContent.replace("KDD_CLUSIFICATION_RESULT", htmlbody.toString());
 		
-		BufferedWriter fileWriter = new BufferedWriter(new FileWriter("result.html"), 65536);
+		BufferedWriter fileWriter = new BufferedWriter(new FileWriter(this.DISTANCE_TYPE+"Result.html"), 65536);
 		fileWriter.write(htmlContent);
 		fileWriter.close();
 	}
 	
+	public void changeDistance(String dt){
+		this.DISTANCE_TYPE = dt;
+	}
+	
 	public static void main(String a[]) throws IOException{
 		Distances d = new Distances();
-		//d.calculateMeans();
+		d.calculateMeans();
 		d.loadMeans();
 		d.readDescriptors();
 		d.associateCluster();
 		d.generateHTML("template.html", "text/img-", "png");
-		System.out.println("FIN");
+		
+		d.changeDistance("mi");
+		d.associateCluster();
+		d.generateHTML("template.html", "text/img-", "png");
+		
+		d.changeDistance("ma");
+		d.associateCluster();
+		d.generateHTML("template.html", "text/img-", "png");
+		
+		System.out.println("Done");
+		
 	}
 	
 }
