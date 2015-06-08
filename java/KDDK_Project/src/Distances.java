@@ -18,8 +18,8 @@ public class Distances {
 	private int imageCHs[][];
 	private int imageDFs[][];
 	private int imageData[][];
-	private final int TOTAL_IMAGES=100;
-	private final int FIRST_ID=2;
+	private final int TOTAL_IMAGES=1843; //++++++
+	private final int FIRST_ID=2; //+++++
 	private final int DATA_LENGTH=75;
 	private final String DISTANCE_TYPE = "e"; //e for euclidean, ma for manhattan, mi for minkowski
 	
@@ -68,10 +68,12 @@ public class Distances {
 			}
 			
 		}catch(Exception e){}
-		System.out.println();
+		System.out.println("descriptors read");
 	}
 	
 	public void associateCluster(){
+		System.out.println("associating clusters");
+		String data = "";
 		for(int i=0; i<this.imageIDs.length; i++){
 			double minDist = getDistance(this.clusterMeans[1],this.imageData[i]); //dist to first cluster
 			int clusterID=this.clusterIDs[1];
@@ -83,9 +85,13 @@ public class Distances {
 				}
 			}
 			this.imageLabels[i] = this.clusterLabels[clusterID];
-			System.out.println(this.imageIDs[i] + "\t" + this.imageLabels[i]);
+			//System.out.println(this.imageIDs[i] + "\t" + this.imageLabels[i]);
+			data += this.imageLabels[i] + " ";
 		}
-		
+		String newdata = data.replace("n  RightN", "m");
+		newdata = newdata.replace("DownS  o", "g");
+		newdata = newdata.replace("i  RightN", "n");
+		System.out.print(newdata);
 	}
 	
 	public double getDistance(double cl[], int img[]){
