@@ -73,7 +73,7 @@ public class Distances {
 	}
 	
 	public void associateCluster(){
-		System.out.println("associating clusters, distance: "+this.DISTANCE_TYPE);
+		System.out.println("\nassociating clusters, distance: "+this.DISTANCE_TYPE);
 		String data = "";
 		for(int i=0; i<this.imageIDs.length; i++){
 			double minDist = getDistance(this.clusterMeans[1],this.imageData[i]); //dist to first cluster
@@ -99,6 +99,8 @@ public class Distances {
 		newdata = newdata.replace("I RightN", "n");
 		newdata = newdata.replace("I  RightN", "n");
 		newdata = newdata.replace("l .", "i");
+		newdata = newdata.replace("l n", "m");
+		newdata = newdata.replace("l  n", "m");
 		newdata = newdata.replace("n RightN", "m");
 		newdata = newdata.replace("n  RightN", "m");
 		newdata = newdata.replace("LeftU i", "u");
