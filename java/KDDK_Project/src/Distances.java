@@ -1,9 +1,11 @@
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-
-import org.apache.commons.math3.ml.distance.*;
-import org.apache.commons.lang.StringUtils;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 import com.aliasi.io.FileLineReader;
 
@@ -233,12 +235,48 @@ public class Distances {
 		}catch(Exception e){}
 	}
 	
-	public static void main(String a[]){
+	/**
+	 * Generate HTML file for image classifcation
+	 * @param templateFile
+	 * @param imagePathPrefix
+	 * @param Imageextension
+	 * @throws IOException
+	 */
+	
+	public void generateHTML(String templateFile, String imagePathPrefix, String Imageextension) throws IOException {
+		
+		StringBuilder htmlbody = new StringBuilder();
+		
+		//Build HTML from classification result
+		for(int i=0; i<this.imageIDs.length; i++) {
+			String imagePath = imagePathPrefix + this.imageIDs[i] + "." + Imageextension;
+			htmlbody.append("<div class='image-container'>");
+				htmlbody.append("<div class='image'>");
+					htmlbody.append("<img src='" + imagePath + "'/>");
+				htmlbody.append("</div>");
+					
+				htmlbody.append("<div class='label'>");
+					htmlbody.append("<span>" + this.imageLabels[i] +"</span>");
+				htmlbody.append("</div>");
+			htmlbody.append("</div>");
+		}
+		
+		byte[] encoded = Files.readAllBytes(Paths.get(templateFile));
+		String htmlContent = new String(encoded, StandardCharsets.UTF_8);
+		htmlContent = htmlContent.replaceAll("KDD_CLUSIFICATION_RESULT", htmlbody.toString());
+		
+		BufferedWriter fileWriter = new BufferedWriter(new FileWriter("result.html"), 65536);
+		fileWriter.write(htmlContent);
+		fileWriter.close();
+	}
+	
+	public static void main(String a[]) throws IOException{
 		Distances d = new Distances();
 		//d.calculateMeans();
 		d.loadMeans();
 		d.readDescriptors();
 		d.associateCluster();
+		d.generateHTML("template.html", "text/img-", "png");
 		System.out.println("FIN");
 	}
 	
