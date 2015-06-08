@@ -6,7 +6,7 @@ WHERE CL.cluster=1000063 and IC.clusterID=1000063
 		and IC.imageid=DF.imageid and CL.clusterID=CH.imageid
 order by CL.clusterID asc
 limit 10000000
-INTO OUTFILE '/tmp/clustersLabeled.csv'
+INTO OUTFILE '/tmp/clusters.csv'
 FIELDS TERMINATED BY '\t'
 LINES TERMINATED BY '\n';
 
